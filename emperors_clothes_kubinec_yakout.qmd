@@ -188,7 +188,7 @@ Code and data to reproduce results, including the model definition and code, are
 
 # Introduction
 
-The Middle East and North Africa is often considered one of the most restrictive and least democratic regions in the world. Scholars have pointed to the role of external powers, rentier states, and religious or secterian conflict as possible culprits behind this regional distinction [@brumberg2002; @brownlee2012; @yom2015; @jamal2009; @ross2012]. As a result, it is not surprising that social science research has likewise suffered significant headwinds due to the difficulty in collecting survey data when Arab regimes ban or heavily regulate such activity [@benstead2018].
+The Middle East and North Africa is often considered one of the most restrictive and least democratic regions in the world. Scholars have pointed to the role of external powers, rentier states, and religious or sectarian conflict as possible culprits behind this unfortunate regional distinction [@brumberg2002; @brownlee2012; @yom2015; @jamal2009; @ross2012]. As a result, it is not surprising that social science research has likewise suffered significant headwinds due to the difficulty in collecting survey data when Arab regimes heavily regulate such activity [@benstead2018].
 
 Furthermore, even when scholars have the ability to engage in survey research, they have to overcome residents' fears over the consequences of sharing their opinions on political topics. Such fears are quite understandable, yet also a significant barrier to learning about what Middle Easterners think [@bellin2004; @josua2021; @albrecht2016; @grewal2023].
 
@@ -402,7 +402,8 @@ if(run_model) {
             prior=prior(normal(0,5), class="Intercept", dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,control=list(max_treedepth=11),
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
   
   saveRDS(fit1,"data/sens_reg1.rds")
   
@@ -490,7 +491,8 @@ fit2 <- brm(bf(kais_combined | vint(treatment) ~  pol_ideo_diff + gender + age +
                           dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit2a <- brm(bf(kais_combined | vint(treatment) ~  pol_ideo_diff + I(pol_ideo_diff^2) + gender + age + (1|gov), 
           bias ~ 1,
@@ -504,7 +506,8 @@ fit2a <- brm(bf(kais_combined | vint(treatment) ~  pol_ideo_diff + I(pol_ideo_di
                           dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 
 fit3 <- brm(bf(kais_combined | vint(treatment) ~ emigrate_thoughts +  gender + age + (1|gov), 
@@ -516,7 +519,8 @@ fit3 <- brm(bf(kais_combined | vint(treatment) ~ emigrate_thoughts +  gender + a
               prior=prior(normal(0,5), class="Intercept", dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit3a <- brm(bf(kais_combined | vint(treatment) ~ connections_self_1 +  gender + age + (1|gov), 
           bias ~ 1), 
@@ -527,7 +531,8 @@ fit3a <- brm(bf(kais_combined | vint(treatment) ~ connections_self_1 +  gender +
               prior=prior(normal(0,5), class="Intercept", dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit4 <- brm(bf(kais_combined | vint(treatment) ~ blame_crisis_rev + gender + age + (1|gov),
           bias ~ 1),  
@@ -538,18 +543,8 @@ fit4 <- brm(bf(kais_combined | vint(treatment) ~ blame_crisis_rev + gender + age
               prior=prior(normal(0,5), class="Intercept", dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
-
-# fit5 <- brm(bf(kais_combined | vint(treatment) ~ vote_pres + (1|gov), 
-#           bias ~ (1|gov)), 
-#             data=survey_data,
-#             family=family_sens_reg,
-#             stanvars=all_stanvars,
-#             #prior=prior(normal(0,5),class="b") +
-#               prior=prior(normal(0,5), class="Intercept", dpar="bias"),
-#             #prior=prior(beta(1,1),class="bias"),
-#             chains=2,cores=2,threads = 3,
-#             backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit6 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
           bias ~ pol_ideo_diff + gender + age + (1|gov)), 
@@ -561,7 +556,8 @@ fit6 <- brm(bf(kais_combined | vint(treatment) ~ 1,
               prior(normal(0,5),class="b",dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit6a <- brm(bf(kais_combined | vint(treatment) ~ 1, 
           bias ~ pol_ideo_diff + I(pol_ideo_diff^2) + gender + age + (1|gov)), 
@@ -573,7 +569,8 @@ fit6a <- brm(bf(kais_combined | vint(treatment) ~ 1,
               prior(normal(0,5),class="b",dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit7 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
           bias ~ emigrate_thoughts + age + gender + (1|gov)), 
@@ -585,7 +582,8 @@ fit7 <- brm(bf(kais_combined | vint(treatment) ~ 1,
               prior(normal(0,5),class="b",dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit8 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
           bias ~ connections_self_1 + gender + age + (1|gov)), 
@@ -597,7 +595,8 @@ fit8 <- brm(bf(kais_combined | vint(treatment) ~ 1,
               prior(normal(0,5),class="b",dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 fit9 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
           bias ~ blame_crisis_rev + age + gender + (1|gov)), 
@@ -609,7 +608,8 @@ fit9 <- brm(bf(kais_combined | vint(treatment) ~ 1,
               prior(normal(0,5),class="b",dpar="bias"),
             #prior=prior(beta(1,1),class="bias"),
             chains=2,cores=2,threads = 3,
-            backend = "cmdstanr")
+            backend = "cmdstanr",
+            seed=661551)
 
 
 
@@ -625,9 +625,9 @@ coefficient_map <- c(
   "b_Ipol_ideo_diffE2"="Ideology Sq.",
   "b_blame_crisis_rev" = "Blame Saied",
   "b_connections_self_1" = "Connections",
-  "b_emigrate_thoughts.L" = "Emigrate",
+  "b_emigrate_thoughtsYes" = "Emigrate",
   "b_bias_pol_ideo_diff" = "Ideology Distance",
-  "b_bias_emigrate_thoughts.L" = "Emigrate",
+  "b_bias_emigrate_thoughtsYes" = "Emigrate",
   "b_bias_connections_self_1" = "Connections",
   "b_bias_blame_crisis_rev" = "Blame Saied",
   "b_bias_Ipol_ideo_diffE2"="Ideology Sq.",
