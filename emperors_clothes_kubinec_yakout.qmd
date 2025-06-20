@@ -35,8 +35,8 @@ format:
   docx: default
 always_allow_html: yes
 extract-media: figures
-#filters:
-# - authors-block
+filters:
+- authors-block
 number-sections: true
 indent: true
 editor: visual
@@ -198,7 +198,7 @@ To evaluate the performance of the randomized response design, we asked a panel 
 
 Importantly, these estimates did not require us to make the standard assumptions of the list experiment, namely that sensitive and non-sensitive list items do not interact. Instead we only had to make the assumption that bias was one-sided, that is, that respondents' fear came from expressing opposition to the dictator rather than from expressing support for the dictator.
 
-In addition, we employ a novel Bayesian parameterization of the randomized response design within our survey experiment to directly model the sources of Tunisians' fear of revealing their preferences. Building on work in the literature on public sentiment in authoritarian regimes [@guriev2020; @corstange2022; @shen2021], we show that policy and ideological differences with the Saied regime are the strongest predictors of opposition—but counter-intuitively, these same covariates also predict reduced sensitivity and self-censorship. Intriguingly, our results suggest that sensitivity bias is greater for moderates than for those who have very strong policy or ideological grounds for opposition to the Saied regime. These results suggest that repression, self-censorship, and ideological disagreement with a regime can interact in surprising ways.
+In addition, we employ a novel Bayesian parameterization of the randomized response design within our survey experiment to directly model the sources of Tunisians' fear of revealing their preferences. Building on work in the literature on public sentiment in authoritarian regimes [@guriev2020; @corstange2022; @shen2021; @shamaileh2025], we show that policy and ideological differences with the Saied regime are the strongest predictors of opposition—but counter-intuitively, these same covariates also predict reduced sensitivity and self-censorship. Intriguingly, our results suggest that sensitivity bias is greater for moderates than for those who have very strong policy or ideological grounds for opposition to the Saied regime. These results suggest that repression, self-censorship, and ideological disagreement with a regime can interact in surprising ways.
 
 # Background
 
