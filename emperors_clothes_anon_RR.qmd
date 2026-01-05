@@ -673,6 +673,32 @@ We do not observe strong non-linear dynamics with ideological distance in either
 
 These results show intriguing patterns that we hope spur additional empirical research into public opinion regarding support for authoritarian governments in the MENA region and elsewhere. As we might expect, policy and ideological disagreement with President Saied was associated with latent opposition to his regime. However, these same covariates were negatively related to sensitivity bias, implying that for those with the strongest ideological or policy disagreements, they did not self-censor their opposition. Self-censorship was primarily among more moderate opponents of Saied.
 
+```{r max_func}
+
+max_func <- function(d,c,x_hat, x_s) {
+  
+  
+  (d*x_s)*(c * x_hat)/(d + c)
+  
+}
+
+# make x_hat exogenous
+# moderates
+
+x_prime <- 0.5
+
+mf1 <- max_func(2,1.1,x_prime,1)
+
+x_dprime <- -1.5
+
+mf2 <- max_func(2,1.1,x_dprime,1)
+
+mf1 - mf2
+
+x_prime - x_dprime
+
+```
+
 This intriguing relationship necessarily invites speculation as to the underlying causal process. While fully investigating this relationship is beyond the scope of this article, and would likely require separate confirmatory studies, we believe that a plausible explanation could be that moderate opponents of Saied have less cost to accepting his rule than those with stronger objections to his policies. Assuming that policy disagreement leads to varying costs as a function of the level of disagreement while repression costs are fixed across the policy and ideological spectrum, more moderate opponents have less to lose if Saied remains in power. However, moderates will face the same level of repression as would more radical opponents if they express opposition to Saied. As a consequence, this observed relationship between dissent and bias would appear to conform to a standard rational model of human behavior. However, we leave it up to future research to test this proposed explanation against others.
 
 \newpage
