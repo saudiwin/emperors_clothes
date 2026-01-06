@@ -1,0 +1,680 @@
+---
+title: "Measuring the Emperor's Clothes"
+subtitle: "Estimating Latent Opposition to Authoritarian Regimes with Randomized Response Questions"
+date: last-modified
+date-format: long
+fig-cap-location: top
+# author:
+#   - name: Robert Kubinec
+#     corresponding: true
+#     affiliation:
+#       - ref: usc
+#     email: rkubinec@mailbox.sc.edu
+#   - name: Amr Yakout
+#     affiliation:
+#       - ref: georgetown
+affiliations:
+  - id: georgetown
+    name: Georgetown University
+    city: Washington
+    state: DC
+    country: United States of America
+  - id: usc
+    name: University of South Carolina
+    city: Columbia
+    state: South Carolina
+    country: United States of America
+format: 
+  wordcount-pdf:
+    keep-tex: true
+    toc: false
+    include-in-header: 
+      - text: |
+          \usepackage{threeparttable}
+          \usepackage{ragged2e}
+  docx: default
+always_allow_html: yes
+extract-media: figures
+#filters:
+# - authors-block
+number-sections: true
+indent: true
+editor: visual
+linestretch: 1.5
+abstract: "While many studies of public opinion in authoritarian regimes rely on list experiments to overcome sensitivity bias, we show in this paper that a different technique, the crosswise variant of the randomized response design, has superior performance at measuring latent opposition to authoritarian regimes with fewer assumptions. To show the power of this design, we randomly assigned a panel of 924 Tunisian survey respondents to receive either a direct question about support for Tunisian President Kais Saied or a randomized response question. Our results reveal that between 10% to 30% of Tunisians oppose the president but would not report this opposition on a direct question. We further employed a Bayesian parameterization of the randomized response design to decompose the sensitivity bias and model latent opposition and bias as a function of survey covariates. We find that ideological and policy disagreement with the president strongly predicts latent opposition, but that these same measures are negatively related to sensitivity bias. As a result, we show that respondents who are ideologically closer to the president--that is, the moderate opposition--tend to be more afraid of reporting their resistance to the regime than the more radical opposition.^[The pre-registration for this experiment can be accessed via [this link](https://filesupload846633.s3.us-east-2.amazonaws.com/preregistration_tunisia_imf_survey+copy.pdf).]"
+bibliography: references.bib
+execute: 
+  cache: false
+  echo: false
+  warning: false
+---
+
+```{r setup}
+#| include: false
+#| cache: false
+
+library(tidyverse)
+library(dplyr)
+library(qualtRics)
+library(ggplot2)
+library(lubridate)
+library(forcats)
+library(cmdstanr)
+library(bayesplot)
+library(RRreg)
+library(rr)
+library(readxl)
+library(brms)
+library(tinytable)
+library(modelsummary)
+
+run_model <- T
+
+set.seed(7364001)
+
+```
+
+```{r load_data}
+#| include: false
+
+# load census data
+
+census <- read_xls("data/tunisia_pop_census_2014.xls") %>% 
+  select(gender="Sex: Name",
+         gov="Regions: Name",
+         pop="Facts: Value",
+         age_cat="Age group: Name") %>% 
+  filter(!(gov %in% c("Tunisia","North East",
+                         "North West","Center East",
+                         "Center West","South East",
+                         "South West"))) %>% 
+    filter(!(age_cat %in% c("0-4","5-9","10-14"))) %>% 
+  mutate(gov=str_remove(gov, "Governorate of "),
+         gov=factor(gov),
+         age_cat=factor(age_cat,
+                        levels=c("15-19",
+                                 "20-24","25-29","30-34",
+                                 "35-39","40-44","45-49",
+                                 "50-54","55-59",
+                                 "60-64","65-69","70-74",
+                                 "75-79","80 year and more")),
+         age_cat_order=ordered(age_cat),
+         gov=case_match(gov,
+                        'Medenine'~"Médenine",
+                        'Gabes'~"Gabès",
+                        'du Kef'~"Le Kef",
+                        'Beja'~"Béja",
+                        'Manouba'~"Mannouba",
+                        .default=gov),
+         pop=ifelse(age_cat=="15-19",pop*(2/5),pop),
+         prop=pop/sum(pop))
+
+# load survey data
+
+survey_data <- read_csv("data/survey_anon.csv") %>% 
+    mutate(kais_rr=factor(kais_rr, exclude=NA),
+           kais_direct=factor(kais_direct, exclude=NA)) %>% 
+    mutate(kais_rr=factor(kais_rr,
+                        levels=c("One of the two statements is true.",
+                                 "Both statements are true OR neither is true.")),
+                        kais_rr_num=as.numeric(kais_rr)-1,
+           kais_direct=factor(kais_direct,levels=c("No","Yes")),
+           kais_direct_num=as.numeric(kais_direct)-1,
+           kais_combined=coalesce(kais_rr_num,kais_direct_num),
+         duration=scale(`Duration (in seconds)`),
+         treatment=as.numeric(!is.na(FL_63_DO_saied_sensitive)))
+
+# load screener data
+
+screener_data <- read_csv("data/screener_anon.csv") %>% 
+  select(ExternalReference="ResponseId",
+         age,gov,gender_screener="gender")
+
+screener_data <- mutate(screener_data,
+                        age_cat=findInterval(age,v=c(15,20,25,30,35,40,45,50,55,60,65,70,75,80,100)),
+                        age_cat=factor(age_cat,
+                                       labels=levels(census$age_cat)),
+                        age_cat_order=ordered(age_cat))
+
+survey_data <- left_join(survey_data,screener_data,by="ExternalReference") %>% 
+  mutate(gender=coalesce(as.character(gender), 
+                         as.character(gender_screener)),
+         gender=ordered(gender, levels=c("Male","Female")))
+
+# need complete dataset
+
+comp_data_rr <- survey_data %>% 
+  mutate(education=factor(education, exclude=NA),
+         gender=factor(gender, exclude=NA)) %>% 
+  filter(!is.na(gender),!is.na(education),!is.na(kais_rr)) %>% 
+  mutate(kais_rr=factor(kais_rr,
+                        levels=c("One of the two statements is true.",
+                                 "Both statements are true OR neither is true.")),
+                        kais_rr_num=as.numeric(kais_rr)-1,
+         duration=scale(`Duration (in seconds)`))
+
+comp_data_direct <- survey_data %>% 
+  filter(!is.na(gender),!is.na(education),!is.na(kais_direct))
+
+income_levels <- c(
+  "0 to 500 TND",
+  "500 TND to 1400 TND",
+  "1400 TND to 2800 TND",
+  "2800 TND to 5500 TND",
+  "5500 TND to 13500 TND",
+  "13500 TND to 27000 TND",
+  "Above 27000 TND"
+)
+
+# Overwrite the existing 'income' column in your survey_data data frame
+survey_data <- survey_data %>%
+  mutate(
+    non_ordered_income = factor(income, levels = income_levels, ordered = FALSE)
+  )
+
+survey_data <- survey_data %>%
+  mutate(
+    pol_ideo_diff = abs(pol_ideo_1 - pol_ideo_other_1)/100,
+    blame_crisis_rev = max(blame_crisis_3,na.rm=T) - blame_crisis_3
+  )
+
+```
+
+\newpage
+
+# Introduction
+
+The Middle East and North Africa is often considered one of the most restrictive and least democratic regions in the world. Scholars have pointed to the role of external powers, rentier states, and religious or sectarian conflict as possible culprits behind this unfortunate regional distinction [@brumberg2002; @brownlee2012; @yom2015; @jamal2009; @ross2012]. As a result, it is not surprising that social science research has likewise suffered significant headwinds due to the difficulty in collecting survey data when Arab regimes heavily regulate such activity [@benstead2018].
+
+Furthermore, even when scholars have the ability to engage in survey research, they have to overcome residents' fears over the consequences of sharing their opinions on political topics. Such fears are quite understandable, yet also a significant barrier to learning about what Middle Easterners think [@bellin2004; @josua2021; @albrecht2016; @grewal2023].
+
+In this paper, we apply a tool known as randomized response [@vandenhout2002; @blair2015], and specifically the crosswise variant [@gingerich2016], to obtain valid measures of opposition to the Tunisian dictator Kais Saied. While this survey design has existed for decades, it has not been previously applied to the estimation of public opinion in authoritarian regimes [@blair2020]. As we show, randomized response has considerable advantages over the widely-used list experiment because its assumptions are more easier to justify for the particular challenge of obtaining responses from dissidents in an authoritarian regime. This sensitive survey design effectively encrypts respondent identities in a manner that the respondent can directly observe, increasing the credibility of the survey design, while also being easy to deploy via secure online survey platforms.
+
+To evaluate the performance of the randomized response design, we asked a panel of 924 Tunisians recruited via an online panel in 2023 about their opposition to Tunisian President Kais Saied. We implemented a survey experiment in which half of the respondents received a standard direct question while half received the randomized response design, specifically the crosswise variant that is significantly easier to implement in online surveys. Our results showed that the direct question under-estimated opposition to President Saied by between 10% and 30%; when using the randomized response technique, the most likely value for opposition to the regime was 50% of the total population when adjusting for survey demographics with multilevel regression and post-stratification (MRP).
+
+Importantly, these estimates did not require us to make the standard assumptions of the list experiment, namely that sensitive and non-sensitive list items do not interact. Instead we only had to make the assumption that bias was one-sided, that is, that respondents' fear came from expressing opposition to the dictator rather than from expressing support for the dictator.
+
+In addition, we employ a novel Bayesian parameterization of the randomized response design within our survey experiment to directly model the sources of Tunisians' fear of revealing their preferences. Building on work in the literature on public sentiment in authoritarian regimes [@guriev2020; @corstange2022; @shen2021], we show that policy and ideological differences with the Saied regime are the strongest predictors of opposition—but counter-intuitively, these same covariates also predict reduced sensitivity and self-censorship. Intriguingly, our results suggest that sensitivity bias is greater for moderates than for those who have very strong policy or ideological grounds for opposition to the Saied regime. These results suggest that repression, self-censorship, and ideological disagreement with a regime can interact in surprising ways.
+
+# Background
+
+Measurement of sensitive survey questions has been a difficult problem in applied statistics for over half a century [@warner1965]. Statistical estimation of public opinion generally addresses issues of sample selection bias; that is, how to obtain an unbiased estimate given different sampling strategies [@pollock2012]. Sensitive survey questions, unfortunately, cannot be ameliorated with sampling alone as the issue comes from an unwillingness of respondents to provide accurate responses to questions because of the perceived costs of giving the sensitive answer. The literature on sensitive survey questions was designed for situations where the primary cost was social shame, such as admitting to contracting infectious diseases like AIDS [@latkin1998; @latkin2017], or due to the risk of possible prosecution from admitting to illegal acts [@gingerich2013].
+
+In an authoritarian regime, sensitivity bias arises from the desire of the regime to influence the expressed preferences of its citizens. The primary goal of repression is to obstruct counter-regime mobilization by making it difficult for the opposition to gauge its true strength [@kuran1989]. Regimes will employ a variety of strategies to accomplish this end, whether via "brute force" coercive means [@bellin2004] or through more subtle manipulation of media environments [@guriev2020; @king2013; @pan2020] or even public health policies [@barceló2022; @grasse2021]. The sensitivity in survey questions arises in this case not from shared social norms which stigmatize a certain trait, as in infectious diseases, but rather due to active efforts to dissuade people from expressing a certain opinion.
+
+At the same time, it is difficult to know exactly how effective regime repression will be at suppressing dissent. Repression strategies are not always fully coherent, and can be undermined by political actors in ways that are difficult for the regime to observe [@wedeen1999]. The primary concern for survey research in authoritarian regimes is that respondents will doubt either the bona fides of the research team or the research team's ability to safeguard their information from the authoritarian regime—or perhaps that their opinions will be observed through some kind of surveillance whether in person or online.
+
+On the one hand, there does not appear to be much evidence of survey research resulting in substantial harm to respondents.[^1] Authoritarian targeting of research subjects certainly occurs, but known instances relate to in-person meetings with local actors [@stroup2023]. Online survey research using modern tools like Qualtrics is very secure as the data are directly stored in encrypted databases without need for intermediaries. However, for survey respondents to believe that a survey is safe to respond to, it is their beliefs about the potential consequences of responding that matter, not the actual probability of harm. As @king2013 have shown, sophisticated repression strategies can create strategic ambiguity about what and who are under surveillance, which results in people becoming overly cautious to compensate for the unknown nature of risks.
+
+[^1]: While we cannot find evidence of such harm using a variety of search enginges, there also does not appear to have been a published exhaustive review of possible harms caused by academic survey research. On the other hand, we note that Data Justice Lab maintains a thorough list of a variety of "data harms" and academic research does not even appear as one of the possibilities. See <https://datajusticelab.org/data-harm-record/>.
+
+It should also be noted that this type of question sensitivity arises from authoritarian regimes that are reasonably consolidated or durable. If a regime is under substantial threat and a credible counter-regime movement emerges, sensitivity bias may suddenly evaporate or even influence people to express more counter-regime opinions than they in fact hold [@kuran1989; @truex2014; @hale2022]. This type of mass mobilization occurred during the Arab Uprisings as the temporary reduction in repression led to euphoric expressions of counter-regime protest [@brownlee2013]. By contrast, citizens of Lebanon tend to report higher levels of freedom of speech even without such mobilization, but this liberality is due more to the weakness of the central state at targeting dissidents than to a positive commitment of the state to safeguard freedom of expression [@asher2021]. Armed non-state actors like Hizballah, for example, have been known to take their own measures to silence dissidents within their respective areas of control [@el-husseini2024].
+
+Unfortunately, countries like Lebanon and episodes of massive anti-regime contention are the exception rather than the rule in the Middle East and North Africa. The region has one of the worst records in the world for freedom of media and expression due to imprisonment and harassment of dissidents and journalists [@2024wor]. For that reason, survey research is difficult to implement due to government restrictions, and when surveys are conducted, it is difficult to discern if sensitive survey bias may be an issue when interpreting the results [@benstead2018]. The unanticipated nature of the outbreak of the Arab Uprisings, and later uprisings in Algeria, Lebanon, and Sudan, show that there almost certainly was self-censorship of anti-regime attitudes prior to the sudden outbreak of mobilization.
+
+Scholars of authoritarian regimes have, largely without exception, deployed list experiments as their tool of choice for addressing the sensitivity bias associated with fear of repression. In @blair2020 exhaustive review of studies employing sensitive designs, the authors noted that randomized response technique was also an option for sensitive survey design, but chose not to include it in their review "\[b\]ecause the list experiment is by far the sensitive question format of choice among political scientists" (p. 1298). Indeed, there have been numerous studies in authoritarian regimes, both inside and outside the MENA region, that have employed list experiments to study various aspects of public opinion [@aytaç2021; @nicholson2023; @buckley2024; @yamao2025; @corstange2022; @koehler2022; @ash2023]--but we cannot find a single such study that employs any other types of sensitive survey techniques despite their long history [@winkler1979].
+
+Arguably the main reason for the list experiment's popularity is that it is relatively simple to both implement and analyze. A list experiment involves showing random versions of a list of four to five declarative statements, one of which is the sensitive statement, i.e., asking the respondent whether they support the dictator. One form of the list, known as the control, omits the sensitive trait while the other form includes it. The answers to the list question obfuscates sincere responses by only asking respondents how many of the items may be true for them; by comparing aggregate responses across the different lists, it is possible to identify an estimate of the latent trait by using difference in means of the count of supported statements across control and treatment lists.
+
+However, the simplicity of the implementation of the list experiment comes at a cost. First, the ease of implementation does not translate as well to respondents' cognitive load, who may be confused by the odd question and the multiple, probably unrelated statements [@kao2022]--though concerns of complexity or artificiality exist for all sensitive survey designs. More problematically, a well-functioning list experiment requires a set of sensitive and non-sensitive statements with very specific attributes to avoid inferential problms.
+
+@blair2012 helpfully describe the main assumptions as *design effects*, *ceiling effects*, and *floor effects*. Ceiling and floor effects are relatively simple as they require that any non-sensitive items in the list be neither too rare nor too frequent, or it will be difficult for respondents to "hide" in the natural random variation of the non-sensitive traits. Design effects, though, are more pernicious, as this assumption requires that the items (both sensitive and non-sensitive) on the list do not interact when added or removed. For example, suppose that a researcher adds a seemingly innocuous question about people who enjoy taking the train in a list with a sensitive statement about support for the dictator. If the dictator had made investment in high-speed rail a policy priority, the inclusion of the non-sensitive statement could interact with the sensitive statement in hard-to-predict ways. While there are statistical tests that provide some evidence of whether these assumptions are met [@blair2012], none of the tests are foolproof, and scholars may be unaware of how difficult it can be to meet these assumptions without extensive field testing [@gelman2014].
+
+We note that, in addition to the floor, ceiling, and design assumptions, there is an additional assumption that we term the common knowledge assumption. In order for the encryption techniques to work in a sensitive survey design, the respondent must believe that there is sufficient naturally-occurring variation in the non-sensitive traits (i.e., random noise). Otherwise, the respondent may not view the encryption process as credible if they think the non-sensitive traits are either very rare or very common—*even if the respondent's beliefs are wrong*. That is, suppose the researcher uses a statement about whether the respondent watches a popular television show as a non-sensitive item in a list. Although the actual proportion who watch the show may be nowhere near 100%, if a respondent held beliefs that the proportion was in fact that high, then the list experiment would fail at soliciting sensitive answers because the respondent would not believe that sufficient variation existed to encrypt their answer.
+
+Perhaps unsurprisingly, there have been ample evaluations of both list experiments and randomized response designs that suggest the latter are more effective. In a highly-powered survey experiment employing direct questions, the randomized response technique, and a list experiment in an experimental treatment, @rosenfeld2016 found that the randomized response technique estimated the correct proportion of support for a referendum with significantly less bias than a list experiment. @kao2022 also showed based on cross-national survey experiments that the list experiment was only able to partially recover the latent trait, and performed poorly among less-educated and older respondents. Recently, @agerberg2021, @blair2019, and @kuhn2022 have shown that list experiments can suffer from a pernicious form of "nonstrategic misreporting" because list experiments require survey participants to read through all the list items to know if the list contains the sensitive item or not, which may require the use of a "placebo" control item to compensate for insufficiently attentive respondents. Given all these serious issues, we believe that the randomized response technique may be worth another look.
+
+We next turn to a brief definition of the randomized response technique as we employ it in this paper. This variant has been amply described in the literature [@vandenhout2002; @blair2015]. Both list experiments and randomized response share a similar design goal of using naturally-occuring variation, i.e., randomness, to encrypt a response within a survey. This type of encryption is similar to how modern digital cryptography works by disguising data with random noise [@gennaro2006]. Crucially, for encryption to work, the respondent must be the only one to have the key, that is, to be able to decrypt the responses by knowing what variation is due to the non-sensitive randomness and what variation is due to the sensitive trait. For a list experiment, this randomness is due to randomly showing or not showing a sensitive item in a list, while for randomized response, the respondent is asked to answer the question truthfully conditional on a random outcome like a coin flip.
+
+The randomized response technique (hereafter referred to as RRT) is therefore a more direct way of employing random variation to encrypt responses than the list experiment. However, RRT has been historically more difficult to implement because it requires the survey to have the ability to execute a random process. For in-person surveys, dice, coins, or rotating sliders can be used because the respondent can see the random process occurring [@gingerich2009]. However, doing so often requires substantial interviewer training compared to a list experiment. While it is logistically simple to draw a random number in an online survey, it is not possible for the respondent to observe that draw and know that it was truly random. These practical limitations of the conventional RRT are the most likely reason why the RRT design has been used much less frequently than the list experiment despite its superior properties, especially in the burgeoning field of online survey methods [@neundorf2021; @rosenzweig2020].
+
+# Our Approach
+
+To overcome the implementation issues of RRT, in this paper we employ a more recent variant of the RRT known as the crosswise model [@tan2009; @gingerich2016] in which the respondent's mother's month of birth is used as the encryption key. The respondent is given two statements, the first of which says that their mother was born in the first three months of the year, and the second is the sensitive trait, such as support for a dictator. The respondent is then asked whether one or both of these statements are true or neither statement is true. Because the survey researcher does not know in which month the respondent's mother was born, the researcher will not be able to tell if they answered negatively because their mother was not born in the beginning of the year *or* because they disagreed with the sensitive statement.
+
+The crosswise variant of the RRT is easy to implement in either online or offline versions as it does not require the use of dice or other randomness-generating mechanisms. Importantly, RRT does not require the researcher to find sensitive and non-sensitive items which do not interact and do not have either floor or ceiling effects. Additionally, it is easy for the crosswise RRT to meet the common knowledge assumption because most people are aware that births are approximately uniformly distributed across months--though perhaps not in those precise terms--and we would expect this knowledge about the distribution of births to be commonly held regardless of age or educational attainment.
+
+We now present a Bayesian interpretation of the RRT model. We note that we are not the first to employ a Bayesian anlysis of the RRT [@winkler1979]; however, our approach differs from existing work and so we we will fully describe it here. The advantage of employing Bayesian methods for sensitive survey question analysis is both for estimation reasons—Bayesian methods like Markov Chain Monte Carlo excel at obtaining robust uncertainty of latent quantities—and for the ability to use prior distributions to incorporate qualitative or quantitative information about the nature of the latent trait (for example, see @chou2020).
+
+Our definition of the RRT model follows @vandenhout2002. We first define opposition to a dictator as a binary random variable for respondent $i$ that we denote $\pi_i$. The observed answers to our RRT crosswise question are represented by the vector $Y_i$ where there are two possibilities (i.e., one of the two answers to the sensitive question). We define $Y_i$ as:
+
+$$
+Y_i = P \large \pi_i
+$$ where $P$ is a 2x2 confusion matrix of probabilities parameterized by the proportion $p$ of people who have a birthday in the first three months of the year. We show an example of this matrix in @tbl-matrix. As can be seen, the probabilities are symmetric; that is, when someone has a birthday in the first 3 months of the year, it is equally likely that they either do or do not oppose the dictator, and vice versa for having a birthday later in the year. This symmetry is what effectively encodes the respondent's response.
+
+|   | **Opposes Dictator** | **Does Not Oppose Dictator** |
+|----|:--:|:--:|
+| **First 3 Months Birthday** | $p$ | $1 - p$ |
+| **Last 9 Months Birthday** | $1 - p$ | $p$ |
+
+: Confusion Matrix for Randomized Response Design {#tbl-matrix}
+
+We can then further define our model by parameterizing the probability of support for the dictator $\pi_i$ as a 2-length vector $\pi_i = [\mu_i, (1-\mu_i)]'$ where we use a linear model $\mu_i$ for the probability of positive opposition. For each respondent $i = 1,\dots, N$ and linear predictor with covariate effects $\beta$, $\mu_i = \operatorname{logit}^{-1}\bigl(\alpha + \mathbf{x}_i^\top \beta\bigr)$, we can model the observed response to the RRT question $Y_i \in \{0,1\}$ via the Bernoulli distribution:
+
+$$
+\Pr\bigl(Y_i = y_i \mid \mu_i, P\bigr)
+\sim
+\text{ Bernoulli}(P[\mu_i,1 - \mu_i]')
+$$ {#eq-hout1}
+
+which is equivalent to
+
+$$
+\Pr\bigl(Y_i = y_i \mid \mu_i, P\bigr)
+ = \bigl[(1-p)\,(1 - \mu_i)\;+\;p\,\mu_i\bigr]^{y_i}
+\bigl[p\,(1 - \mu_i)\;+\;(1-p)\,\mu_i\bigr]^{1 - y_i}
+$$ {#eq-hout2}
+
+This is the standard parameterization of the RRT likelihood and is also used by @blair2012 among others. In a Bayesian context, we also add weakly informative priors for our parameter vector $\beta$: \begin{align}
+\beta \sim& \text{ Normal}(0,5)
+\end{align}
+
+in order to make the posterior proper without having significant influence on our estimate of $\pi_i$. We can then obtain our sample average estimate of $\pi_i$ as $\hat{\pi} = E[u_{is}]$ for a given set of posterior draws $s \in S$ of the empirical posterior distribution obtained with MCMC.
+
+One way that we move beyond the standard RRT design is to allow for joint estimation of both the sensitive question and a direct question. If we randomize whether a respondent sees either type of question, we could then obtain an estimate of not only the true level of support $\hat{\pi}$, but also the level of bias $\hat{b}$ between the true level of support and the observable level of support.
+
+Given assignment of a respondent $i$ to a treatment status $T_i \in \{0,1\}$, respondents see either the RRT question or a direct question. We can then jointly estimate both the RRT and the responses to the direct question in a similar manner to @gingerich2016 so that we can directly model the bias between the observed response $Y_i$ and the sensitive trait $\pi_i$:
+
+$$
+b_i = Pr(Y_i = 1) - \pi_i
+$$ {#eq-bias}
+
+We can also parameterize the bias with covariates effects $\gamma$ so that $E[b_i] = \operatorname{logit}^{-1}\bigl(\mathbf{z}_i^\top \gamma\bigr)$. In a similar manner, our sample average estimate of bias is $\hat{b} = E[b_{is}]$ for a given set of posterior draws $s \in S$.
+
+We can now define the full joint likelihood of both the RRT model and the bias model for the response of a given respondent $i$ given treatment status $T_i$. We also implement a minor tweak to the likelihood for the control status $T_i=0$ by substituting a transformed bias parameter $b^*_i$ as $b^*_i = \mu_i b_i$ to ensure that $\mu_i - b_i$ is positive:
+
+\begin{align}
+Pr(Y_i \;\bigl|\;\mu_i,\,b^*_i,\,T_i,\,P) \;\sim\;
+&\begin{cases}
+  \displaystyle 
+  \mathrm{Bernoulli}\Bigl(P\mu_i\Bigr),
+    & T_i = 1, \\[10pt]
+  \displaystyle 
+  \mathrm{Bernoulli}\Bigl(\mu_i \;-\; \mu_i\,b^*_i, (1-\mu_i) + b^*_i \Bigr),
+    & T_i = 0,
+\end{cases}
+\end{align}
+
+This assumption works whenever we believe that the bias will result in observed responses that are less than the true level of opposition, which is true almost by definition in the case of estimating counter-regime public opinion in a country with ongoing repression of dissent.
+
+And finally we can define the log-likelihood of a respondent's observed answer to either the RRT or direct question, $y_i$, given treatment status $T_i$, as:
+
+\begin{align}
+% 4. Full‐data log‐posterior (up to normalizing constant)
+\log Pr(\beta, \gamma \mid \{y_i, T_i\}_{i=1}^n)
+&=
+\sum_{i=1}^N 
+  \log\bigl[\Pr(Y_i = y_i \mid \mu_i,b^*_i,T_i)\bigr]
+\;+\;\log p(\beta)\;+\;\log p(\gamma).
+\end{align}
+
+Where we likewise assign weakly informative priors for the bias regression coefficients:
+
+\begin{align}
+\gamma \sim& \text{ Normal}(0,5)
+\end{align}
+
+To estimate the model, we employ Hamiltonian Monte Carlo (HMC) with the Stan library [@carpenter2017] and the R package `brms` [@bürkner2017] in which we fit multiple chains and then test for convergence by examining the $R$-hat statistic [@vehtari2021]. We also examine model fit statistics like the posterior predictive distribution to ensure that the model is able to capture the important moments of the empirical data. Source code for this model in R will be available in a public Github repository.
+
+# Research Design and Case Selection
+
+Our aim in this paper is to show the power of the RRT design by applying it to a difficult problem, which is the estimation of popular opposition to the regime of Tunisian President Kais Saied. Tunisia, which had a once-bright future as an emerging democracy in the 2010s, succumbed to an autogolpe (self-coup) when President Saied shut down the country's elected parliament in 2021. Since then, elections for the presidency and the parliament have been marred by irregularities and restrictions on who can run. In addition, Saied has implemented heavy-handed measures to go after dissidents and rival politicians, including prosecuting critics in military courts [@marzouki2025; @kubinec2023; @petkanas2023; @koehler2023].
+
+The party that has faced the strongest repression is the Islamist party Ennahda, which held the largest share of seats in Tunisia prior to the autogolpe [@mccarthy2018]. Although the party had a strong electoral showing, its popularity waned as it struggled to lead the country through the COVID-19 crisis and to deliver long-promised economic growth. Saied attacked the group for undermining the state, and was able to imprison its leader and ban the party's newspaper.[^2]
+
+[^2]: See <https://dawnmena.org/tunisia-release-rached-ghannouchi-unjustly-imprisoned-political-leader/>.
+
+While an opposition movement exists in Tunisia, its unity has been limited by the extent of secularist-Islamist cleavages and ongoing repression. Tunisia's major labor union, the Union Générale Tunisienne du Travail (UGTT), wavered initially but later became an opponent of Saied.[^3] However, the union has not implemented the kind of paralyzing strikes that it did against prior administrations, arguably because Saied has resisted calls to reduce public sector spending and employment in order to reduce Tunisia's budget deficit. Instead, Saied has pursued populist measures that helped contain the worst unrest while relying on foreign donors from the European Union and the Gulf to provide shortfall funding [@meddeb2024].
+
+[^3]: See <https://www.reuters.com/world/africa/powerful-tunisian-trade-union-defies-president-with-mass-protests-2023-02-18/>.
+
+Saied's populism, however, has failed to secure meaningful growth, and unemployment remains high [@meddeb2024]. Surging numbers of Tunisians have left for Europe, a sign of the despair over the country's future amid Saied's repression [@meddeb2024]. There does not appear to be much hope for improvement in Tunisia's economic situation while the country's finances are in disarray, and Saied has persistently refused needed economic reforms and collaboration with international organizations like the International Monetary Fund.[^4]
+
+[^4]: See <https://www.reuters.com/world/africa/tunisia-president-sacks-economy-minister-over-statement-about-imf-2023-10-17/>.
+
+For these reasons, Saied's popularity has likely flagged over the past several years. He came in to power in the 2019 elections with a very high level of popularity, and we know from polling that his coup against the parliament was likewise popular.[^5] However, as repression increased, opinion polling data became more scarce, and concerns over sensitive question bias became stronger.[^6] For the polls that were still published, Saied's popularity remained quite high,[^7] but it became difficult to know if this was due to his adroit use of populist politics or due to fears among the opposition about facing repression if they said they did not support him.
+
+[^5]: See <https://www.washingtonpost.com/politics/2022/04/26/tunisia-saied-coup-backsliding-democracy/>.
+
+[^6]: While we cannot provide details for confidentiality purposes, we had conversations with poll implementers during this time in Tunisia who commented on rising levels of fear and anxiety among survey respondents.
+
+[^7]: See <https://www.crisisgroup.org/middle-east-north-africa/north-africa/tunisia/tunisie-une-election-presidentielle-haut-risque> and <https://www.aljazeera.com/news/2023/8/9/despite-multiple-crises-tunisias-president-still-has-his-supporters>.
+
+## Survey Design
+
+As we have described, we implemented a pre-registered survey experiment[^8] in which we showed half of the respondents a direct question and the other half of respondents the RRT question. We defined our direct question about support for Kais Saied as follows:
+
+[^8]: To see the pre-registration, please download the file accessible at this link: <https://filesupload846633.s3.us-east-2.amazonaws.com/preregistration_tunisia_imf_survey+copy.pdf> (see pages 4 -8).
+
+> Do you oppose President Kais Saied’s moves to change Tunisia’s constitution and close the parliament? (No/Yes)
+
+And for our sensitive survey RRT design, we used the following text:
+
+> Statement 1: My mother's birth date is in January, February or March.
+>
+> Statement 2: I oppose President Kais Saied's moves to change Tunisia's constitution and close the parliament.
+>
+> Answers:
+>
+> 1.  Both statements are true OR neither is true.
+> 2.  One of the two statements is true.
+
+The use of mother's month of birth is the random variation that gives the respondent the key to the encryption. Because only the respondent knows this information, we cannot determine whether they oppose Kais Saied or had a mother born in the first three months of the year. Given that the form of the question is different than a normal survey question, we included this text before the question to ensure the respondent understood the aim of the design:
+
+> We understand that politics in Tunisia is sensitive right now. This question is worded so that you can tell us what you think but still protect your privacy. Because we don’t know when your mother was born, we also won’t know for sure your political opinion.
+
+## Data Collection
+
+To gain a robust estimate of support for Kais Saied, and to test our RRT design, we implemented an online survey targeted at a national sample of Tunisians through social media ads in the summer and fall of 2023. In total we received 924 responses representing all 24 of Tunisia's governorates. While the data are drawn from all major geographic and demographic groups, the survey cannot be considered a true random sample. For this reason, we have to consider adjustment methods to be able to produce estimates that are proportional to the country's demographics.
+
+To do so, we employ Bayesian multilevel regression with poststratification (MRP) [@lax2009] to comprehensively adjust for divergences between sample demographics and Tunisian governorates. We collected Tunisian census data for the population of the cross-tabulation of age, sex and governorate, resulting in 1,344 discrete cells. We then fit a model with age, sex, and governorate as covariates, and predict the sample proportion for each of these cells. We then re-weight using the Tunisian census data so that the results are plausibly representative at the national level. Our Bayesian formulation allows us to do this kind of joint estimation both for the estimated true support for Saied and for the estimated bias when projecting from the sample to the Tunisian population.
+
+# Results
+
+## Descriptive Analysis
+
+We first report descriptive results in @fig-mrpa from our survey that allow us to employ the Bayesian RRT formulation described earlier to uncover the true level of opposition to Kais Saied in the Tunisian population. @fig-mrpa shows the full distribution of posterior draws for true opposition $\hat{\pi}$. These estimates are adjusted with MRP as described previously by including covariates for age, sex, and governorate in the RRT specifications and then re-weighting with Tunisian census data. We also show a vertical plotted line for the sample average of responses to the direct question; approximately 30% of respondents report opposing Saied's actions to shut down the parliament in the direct question compared to an estimated 50% with the RRT question. While the RRT estimates are relatively noisy, there is very little probability that the estimate could be the same as the direct question estimate. Statistically, we can say that estimated true opposition to Saied is between +10% to +30% higher than observed opposition.[^9]
+
+[^9]: It is possible to provide a more precise interval; however, using an estimate to 2 or 3 significant digits would communicate more certainty about the estimate than is warranted.
+
+```{r fit_sens_reg}
+#| include: false
+
+P <- getPW("Warner",p=.25)
+
+source("scripts/brms_sens_reg_experiment.R",local = T)
+
+
+survey_data$age_cat_order <- ordered(survey_data$age_cat)
+
+if(run_model) {
+  
+  fit1 <- brm(bf(kais_combined | vint(treatment) ~ (1|gov), 
+               bias ~ 1), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+            prior=prior(normal(0,5), class="Intercept", dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,control=list(max_treedepth=11),
+            backend = "cmdstanr",
+            seed=661551)
+  
+  saveRDS(fit1,"data/sens_reg1.rds")
+  
+} else {
+  
+  fit1 <- readRDS("data/sens_reg1.rds")
+  
+}
+
+# pp_check(fit1, type="bars",ndraws=500)
+# loo(fit1)
+
+gov_cats <- ranef(fit1,groups = "gov")$gov[,,1] %>% as_tibble %>% 
+  mutate(level=row.names(ranef(fit1,groups = "gov")$gov[,,1]))
+
+```
+
+```{r}
+#| fig-cap: "MRP-Adjusted Estimates of True Opposition to Kais Saied (Parameter $\\hat{\\pi}$)"
+#| label: fig-mrpa
+
+# do for each condition, then average
+
+census_treat <- mutate(census, treatment=1)
+census_notreat <- mutate(census, treatment=0)
+
+tunisia_pred1 <- posterior_epred(fit1, newdata=census_treat)
+tunisia_pred0 <- posterior_epred(fit1, newdata=census_notreat)
+adjust_est1 <- tibble(estimate=c(tunisia_pred1 %*% census$prop))
+adjust_est0 <- tibble(estimate=c(tunisia_pred0 %*% census$prop))
+adjust_est <- (adjust_est1 + adjust_est0)/2
+
+census_est <- mutate(census,
+                     census_est_support_low=(apply(tunisia_pred1,2,quantile,.05) +
+                       apply(tunisia_pred0,2,quantile,.05))/2,
+                     census_est_support=(apply(tunisia_pred1,2,median) +
+                                          apply(tunisia_pred0,2,median))/2 ,
+                     census_est_support_high=(apply(tunisia_pred1,2,quantile,.95) +
+                       apply(tunisia_pred0,2,quantile,.95))/2)
+
+adjust_est %>% 
+  ggplot(aes(x=estimate)) +
+  geom_histogram(alpha=0.5,colour="blue",fill="blue") +
+  ggthemes::theme_clean() +
+  scale_x_continuous(labels=scales::label_percent()) +
+  geom_vline(aes(xintercept=median(estimate)),
+             colour="white",linetype=2,size=1.5) +
+   geom_vline(aes(xintercept=mean(survey_data$kais_direct_num,na.rm=T)),
+             colour="red",linetype=2,size=1.5) +
+  annotate(x=.34,y=175,label="% Direct\nQuestion",
+           geom="text") +
+  labs(y="Count of Respondents",x="% Opposition to Kais Saied",
+       caption=stringr::str_wrap("Plot shows MRP-adjusted estimates of latent opposition to Tunisian President Kais Saied. The plot shows the distribution of empirical posterior draws of the proportion of opposition to Saied. Dotted white line is the median of the posterior draws. Red line is the sample average from the direct question about opposition to Saied."))
+```
+
+Given these results, we can fairly confidently say that true opposition to Saied is higher than naive polls suggest.[^10] Furthermore, this difference is quite large as it is at least 10% of the population. We note that nothing in this design required the respondent to report opposition in the RRT question; if anything, the bias of the design is likely to be conservative. If respondents did not believe that the design would protect their information, then they should under-report their opposition to Saied and the estimate of $\hat{\pi}$ should converge to the direct question. For these reasons, we believe that this estimate is, if anything, a lower bound for the true level of Kais Saied opposition in the country.
+
+[^10]: I.e., see <https://www.washingtonpost.com/politics/2022/04/26/tunisia-saied-coup-backsliding-democracy/>.
+
+Our one caveat is that the proportion of missing data was higher in the sensitive survey question at 6.3% than the direct question at 1.5%. However, we note that this proportion of missing data for the sensitive question is significantly lower than other applications of sensitive survey designs [@rosenfeld2016] and is generally a feature of any sensitive survey question as there is inevitably a higher burden for respondents to answer the question. Nonetheless, we note that 6% missingness is still quite low and not high enough to provide an alternative explanation to the sensitivity bias estimates given that they are at least 10% and probably higher.
+
+Of course, even without these new estimates, we had ample reason to believe that opposition was higher than published polls suggested. Between the cratering economy and high levels of repression, it would seem logical for Saied's popularity to decline since his election and for Tunisians to have significant concerns about expressing opposition. By using a survey experiment to estimate both the direct question proportion and the RRT proportion in the same sample, we can more confidently claim that real bias exists. Our one caveat is that the RRT estimation does result in higher uncertainty, as can be seen by the relatively wide distribution of potential opposition to Saied in @fig-mrpa. The true level of opposition is likely somewhere in the 40% to 60% interval, but we cannot provide a more precise estimate without additional data.
+
+We can also use our survey experiment and Bayesian RRT model to see how the opposition to Saied and unwillingness to answer the direct question are related to each other and to factors which we think might predict these outcomes. Our analysis is exporatory as there is relatively little research on the determinants of sensitive survey bias in authoritarian regimes and in the MENA region in particular. However, we can test factors that we might have reason to believe should be associated with these biases.
+
+## Inference: Political Ideology
+
+In this section we examine what covariates seem to influence both the true level of opposition to Saied ($\hat{\pi}$) and the unwillingness of Tunisians to express opposition (i.e., our bias parameter $\hat{b}$). These are distinct outcomes, and as we show, covariates can predict them with opposite signs. To test for how partisan and ideological disagreements may correlate with these outcomes, we include a measure of ideological self-placement vs. placement of Kais Saied on a left-right axis. This variable, which we denote as ideological distance, has a minimum value of 0 for identical self-placement with Saied and 100 for maximum distance from Saied. We also include a ranking question in which the respondent ranked President Saied among other Tunisian political actors as being primarily responsible for Tunisia's economic crisis. Higher numbers imply greater blame attributed to Saied.
+
+We also look at two covariates that are less partisan. We asked respondents whether they had intentions to emigrate from Tunisia, and how they would rate their political connections on a 0 to 10 scale. Each of these four questions represent our primary covariates of interest.
+
+We present regression models for each outcome separately in @tbl-dissent for opposition $\hat{pi}$ and for bias $\hat{b}$ in @tbl-bias. We fit one model for each covariate, and we fit separate linear and quadratic specifications for ideological proximity. In each model we include gender, age, and geographic region to account for potential sample biases. We do not use other controls to avoid the problem of "post-treatment" bias given that this is exploratory modeling [@montgomery2018].
+
+```{r fit_cov_models}
+#| include: false
+
+fit2 <- brm(bf(kais_combined | vint(treatment) ~  pol_ideo_diff + gender + age + (1|gov), 
+          bias ~ 1), 
+            data=filter(survey_data,!is.na(pol_ideo_diff)),
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior=prior(normal(0,5), 
+                          class="Intercept", 
+                          dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit2a <- brm(bf(kais_combined | vint(treatment) ~  pol_ideo_diff + I(pol_ideo_diff^2) + gender + age + (1|gov), 
+          bias ~ 1,
+          decomp = "QR"), 
+            data=filter(survey_data,!is.na(pol_ideo_diff)),
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior=prior(normal(0,5), 
+                          class="Intercept", 
+                          dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+
+fit3 <- brm(bf(kais_combined | vint(treatment) ~ emigrate_thoughts +  gender + age + (1|gov), 
+          bias ~ 1), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior=prior(normal(0,5), class="Intercept", dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit3a <- brm(bf(kais_combined | vint(treatment) ~ connections_self_1 +  gender + age + (1|gov), 
+          bias ~ 1), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior=prior(normal(0,5), class="Intercept", dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit4 <- brm(bf(kais_combined | vint(treatment) ~ blame_crisis_rev + gender + age + (1|gov),
+          bias ~ 1),  
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior=prior(normal(0,5), class="Intercept", dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit6 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
+          bias ~ pol_ideo_diff + gender + age + (1|gov)), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior(normal(0,5), class="Intercept", dpar="bias") +
+              prior(normal(0,5),class="b",dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit6a <- brm(bf(kais_combined | vint(treatment) ~ 1, 
+          bias ~ pol_ideo_diff + I(pol_ideo_diff^2) + gender + age + (1|gov)), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+              prior(normal(0,5), class="Intercept", dpar="bias") +
+              prior(normal(0,5),class="b",dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit7 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
+          bias ~ emigrate_thoughts + age + gender + (1|gov)), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+             prior(normal(0,5), class="Intercept", dpar="bias") +
+              prior(normal(0,5),class="b",dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit8 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
+          bias ~ connections_self_1 + gender + age + (1|gov)), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+             prior(normal(0,5), class="Intercept", dpar="bias") +
+              prior(normal(0,5),class="b",dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+fit9 <- brm(bf(kais_combined | vint(treatment) ~ 1, 
+          bias ~ blame_crisis_rev + age + gender + (1|gov)), 
+            data=survey_data,
+            family=family_sens_reg,
+            stanvars=all_stanvars,
+            #prior=prior(normal(0,5),class="b") +
+            prior(normal(0,5), class="Intercept", dpar="bias") +
+              prior(normal(0,5),class="b",dpar="bias"),
+            #prior=prior(beta(1,1),class="bias"),
+            chains=2,cores=2,threads = 3,
+            backend = "cmdstanr",
+            seed=661551)
+
+
+
+```
+
+```{r}
+#| label: tbl-dissent
+#| tbl-cap: "Covariates Predicting True Latent Opposition to President Saied ($\\hat{\\pi}$)"
+#| cache: false
+
+coefficient_map <- c(
+  "b_pol_ideo_diff" = "Ideology Distance",
+  "b_Ipol_ideo_diffE2"="Ideology Sq.",
+  "b_blame_crisis_rev" = "Blame Saied",
+  "b_connections_self_1" = "Connections",
+  "b_emigrate_thoughtsYes" = "Emigrate",
+  "b_bias_pol_ideo_diff" = "Ideology Distance",
+  "b_bias_emigrate_thoughtsYes" = "Emigrate",
+  "b_bias_connections_self_1" = "Connections",
+  "b_bias_blame_crisis_rev" = "Blame Saied",
+  "b_bias_Ipol_ideo_diffE2"="Ideology Sq.",
+    "b_Intercept" = "Dissent (mu) Intercept",
+  "b_bias_Intercept" = "Bias (Intercept)"
+)
+
+modelsummary(list(Ideology=fit2,
+                  `Ideology Sq.`=fit2a,
+                  Emigration=fit3,
+                  Connections=fit3a,
+                  `Blame Crisis`=fit4),
+             coef_map=coefficient_map,
+             statistic = "conf.int",
+             notes="Results of a Bayesian regression model of covariates from a sample of Tunisians on a combination direct question/randomized response question about support for President Kais Saied.",
+             output="tinytable",
+             escape=FALSE) %>% 
+  style_tt(fontsize=0.8)
+
+```
+
+```{r}
+#| label: tbl-bias
+#| tbl-cap: "Covariates Predicting Unwillingness to Answer Direct Question About Opposition to Kais Saied ($\\hat{b}$)"
+#| cache: false
+
+modelsummary(list(`Ideology`=fit6,
+                  `Ideology Sq.`=fit6a,
+                  `Emigration`=fit7,
+                  Connections=fit8,
+                  `Blame Crisis`=fit9),
+             statistic = "conf.int", coef_map = coefficient_map,
+             notes="Results of a Bayesian regression model of covariates from a sample of Tunisians on a combination direct question/randomized response question about support for President Kais Saied.",
+             output="tinytable",
+             escape=FALSE) %>% 
+  style_tt(fontsize=0.8)
+
+```
+
+Our results are strongest for our ideological and policy-related covariates in @tbl-dissent. Both ideological distance from Saied and ranking Saied very high for blame have strong and precise relationships to our estimated true opposition measure $\hat{\pi}$. Emigration is negatively related to opposition to Saied though only weakly and imprecisely. Political connections does not appear to be strongly associated with either opposition to Saied or lack thereof.
+
+By contrast, in @tbl-bias we see that the ideological and policy-related covariates have opposite signs with much larger coefficients. The ideology distance covariate is not statistically significant in terms of the 5% to 95% interval excluding zero, but it is three times larger than the coefficient for the same covariate in @tbl-dissent. The coefficient for blame attributed to Saied in @tbl-bias is likewise twice as large as the coefficient in @tbl-dissent, and the relationship is very precise. Emigration is positively though imprecisely related to bias while political connections again do not appear to have a relationship with the outcome.
+
+We do not observe strong non-linear dynamics with ideological distance in either @tbl-dissent or @tbl-bias. If anything, the weak negative quadratic relationship in @tbl-bias would imply that the respondents with the most distance from Saied also have the least bias in reporting opposition.
+
+# Discussion
+
+These results show intriguing patterns that we hope spur additional empirical research into public opinion regarding support for authoritarian governments in the MENA region and elsewhere. As we might expect, policy and ideological disagreement with President Saied was associated with latent opposition to his regime. However, these same covariates were negatively related to sensitivity bias, implying that for those with the strongest ideological or policy disagreements, they did not self-censor their opposition. Self-censorship was primarily among more moderate opponents of Saied.
+
+This intriguing relationship necessarily invites speculation as to the underlying causal process. While fully investigating this relationship is beyond the scope of this article, and would likely require separate confirmatory studies, we believe that a plausible explanation could be that moderate opponents of Saied have less cost to accepting his rule than those with stronger objections to his policies. Assuming that policy disagreement leads to varying costs as a function of the level of disagreement while repression costs are fixed across the policy and ideological spectrum, more moderate opponents have less to lose if Saied remains in power. However, moderates will face the same level of repression as would more radical opponents if they express opposition to Saied. As a consequence, this observed relationship between dissent and bias would appear to conform to a standard rational model of human behavior. However, we leave it up to future research to test this proposed explanation against others.
+
+\newpage
+
+# References
