@@ -701,6 +701,8 @@ x_prime - x_dprime
 
 This intriguing relationship necessarily invites speculation as to the underlying causal process. While fully investigating this relationship is beyond the scope of this article, and would likely require separate confirmatory studies, we believe that a plausible explanation could be that moderate opponents of Saied have less cost to accepting his rule than those with stronger objections to his policies. Assuming that policy disagreement leads to varying costs as a function of the level of disagreement while repression costs are fixed across the policy and ideological spectrum, more moderate opponents have less to lose if Saied remains in power. However, moderates will face the same level of repression as would more radical opponents if they express opposition to Saied. As a consequence, this observed relationship between dissent and bias would appear to conform to a standard rational model of human behavior. However, we leave it up to future research to test this proposed explanation against others.
 
+It is important to note that sensitive-survey designs are by nature able to capture population-level trends. That is, we are able to estimate with reasonable accuracy how many Tunisians on average oppose President Saied; in general we cannot make any confident claims about which individuals in our survey either support or oppose him.
+
 \newpage
 
 # References

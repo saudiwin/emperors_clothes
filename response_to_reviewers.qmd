@@ -1,0 +1,64 @@
+---
+title: "Response to Reviewers for Measuring the Emperor's Clothes"
+date: last-modified
+date-format: long
+fig-cap-location: top
+author:
+  - name: Robert Kubinec
+    corresponding: true
+    affiliation:
+      - ref: usc
+    email: rkubinec@mailbox.sc.edu
+  - name: Amr Yakout
+    affiliation:
+      - ref: georgetown
+affiliations:
+  - id: georgetown
+    name: Georgetown University
+    city: Washington
+    state: DC
+    country: United States of America
+  - id: usc
+    name: University of South Carolina
+    city: Columbia
+    state: South Carolina
+    country: United States of America
+format: 
+  wordcount-pdf:
+    keep-tex: true
+    toc: false
+    include-in-header: 
+      - text: |
+          \usepackage{threeparttable}
+          \usepackage{ragged2e}
+  docx: default
+always_allow_html: yes
+extract-media: figures
+#filters:
+# - authors-block
+number-sections: true
+indent: true
+editor: visual
+linestretch: 1.5
+bibliography: references.bib
+execute: 
+  cache: false
+  echo: false
+  warning: false
+---
+
+Dear Prof. Salloukh,
+
+We thank you for the opportunity to revise our manuscript. We have made extensive revisions to the manuscript that we detail below in response to each reviewer. We hope that this revised manuscript will be suitable for publication in **Middle East Law and Governance**.
+
+Regards,
+
+Robert Kubinec & Amr Yakout
+
+# Reviewer 1
+
+1. *The author should make clear that the methodologies she is exploring are designed to gather data for characterizing populations.  They are of limited value for individual-level analysis.*
+
+The reviewer is correct that this is a feature of sensitive survey designs. We have added the following language to our draft in the discussion:
+
+"It is important to note that sensitive-survey designs are by nature able to capture population-level trends. That is, we are able to estimate with reasonable accuracy how many Tunisians on average oppose President Saied; in general we cannot make any confident claims about which individuals in our survey either support or oppose him."
