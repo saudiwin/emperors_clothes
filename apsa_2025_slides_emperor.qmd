@@ -1,0 +1,48 @@
+---
+title: "Measuring the Emperor's Clothes"
+subtitle: "Estimating Latent Opposition to Authoritarian Regimes with Randomized Response Questions"
+date: 2025-09-13
+date-format: long
+incremental: true
+format:
+  revealjs: 
+    theme: dark
+    incremental: true
+    embed-resources: true
+    slideNumber: false
+    self-contained: false
+#    mermaid-format: svg
+    mermaid:
+      theme: dark
+author: 
+  - name: Robert Kubinec
+    affiliation: University of South Carolina
+    corresponding: true
+indent: true
+editor: visual
+bibliography: references.bib
+css: custom.css
+---
+
+```{r setup}
+#| include: false
+
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+
+
+```
+
+## Sensitive Question Designs
+
+1.  How do you obtain a response from a survey respondent who pays a cost by answering?
+2.  You cannot observe whether the response is truthful or not.
+3.  Try to make the response confidential.
+
+## From Lists with Love
+
+1.  List design is most commonly used to adjust for sensitivity bias. Example:
+    1.  Roses are red.
+    2.  Violets are blue.
+    3.  The dictator wants to kill you.

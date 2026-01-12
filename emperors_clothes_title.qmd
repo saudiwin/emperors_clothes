@@ -1,0 +1,50 @@
+---
+title: "Measuring the Emperor's Clothes"
+subtitle: "Estimating Latent Opposition to Authoritarian Regimes with Randomized Response Questions"
+date: last-modified
+date-format: long
+fig-cap-location: top
+author:
+  - name: Robert Kubinec
+    corresponding: true
+    affiliation:
+      - ref: usc
+    email: rkubinec@mailbox.sc.edu
+  - name: Amr Yakout
+    affiliation:
+      - ref: georgetown
+affiliations:
+  - id: georgetown
+    name: Georgetown University
+    city: Washington
+    state: DC
+    country: United States of America
+  - id: usc
+    name: University of South Carolina
+    city: Columbia
+    state: South Carolina
+    country: United States of America
+format: 
+  wordcount-pdf:
+    keep-tex: true
+    toc: false
+    include-in-header: 
+      - text: |
+          \usepackage{threeparttable}
+          \usepackage{ragged2e}
+  docx: default
+always_allow_html: yes
+extract-media: figures
+#filters:
+# - authors-block
+number-sections: true
+indent: true
+editor: visual
+linestretch: 1.5
+abstract: "While many studies of public opinion in authoritarian regimes rely on list experiments to overcome sensitivity bias, we show in this paper that a different technique, the crosswise variant of the randomized response design, has superior performance at measuring latent opposition to authoritarian regimes with fewer assumptions. To show the power of this design, we randomly assigned a panel of 924 Tunisian survey respondents to receive either a direct question about support for Tunisian President Kais Saied or a randomized response question. Our results reveal that between 10% to 30% of Tunisians oppose the president but would not report this opposition on a direct question. We further employed a Bayesian parameterization of the randomized response design to decompose the sensitivity bias and model latent opposition and bias as a function of survey covariates. We find that ideological and policy disagreement with the president strongly predicts latent opposition, but that these same measures are negatively related to sensitivity bias. As a result, we show that respondents who are ideologically closer to the president--that is, the moderate opposition--tend to be more afraid of reporting their resistance to the regime than the more radical opposition.^[We thank New York University Abu Dhabi for funding and support of this research. The pre-registration for this experiment can be accessed via [this link](https://filesupload846633.s3.us-east-2.amazonaws.com/preregistration_tunisia_imf_survey+copy.pdf). Code and data to reproduce results are available at <https://github.com/saudiwin/emperors_clothes>.]"
+bibliography: references.bib
+execute: 
+  cache: false
+  echo: false
+  warning: false
+---
