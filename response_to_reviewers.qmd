@@ -57,8 +57,40 @@ Robert Kubinec & Amr Yakout
 
 # Reviewer 1
 
-1. *The author should make clear that the methodologies she is exploring are designed to gather data for characterizing populations.  They are of limited value for individual-level analysis.*
+1.  *The author should make clear that the methodologies she is exploring are designed to gather data for characterizing populations. They are of limited value for individual-level analysis.*
 
 The reviewer is correct that this is a feature of sensitive survey designs. We have added the following language to our draft in the discussion:
 
 "It is important to note that sensitive-survey designs are by nature able to capture population-level trends. That is, we are able to estimate with reasonable accuracy how many Tunisians on average oppose President Saied; in general we cannot make any confident claims about which individuals in our survey either support or oppose him."
+
+2.  *So, surveys are probably the more common technique with which the Randomized Response Technique (RRT) should be compared. Ideally, both list experiments and straightforward asking of a sensitive questions should be compared to the RRT. And then, we see by page 14 that the comparison actually is with a direct question on a public opinion survey. This should be incorporated into the discussion of list experiments and alternatives to RRT.*
+
+We note that this comment is substantively similar to a concern from reviewer 2 that we have framed our paper around list experiments, but we do not in fact test list experiments. For these reasons, we have changed sections of our introduction and abstract to de-emphasize list experiments and instead be sure to clarify what our actual analysis. We note that we do not test the list experiment directly against the RRT because there is already excellent experimental work on this question (see @rosenfeld2016), and in addition, evaluating sensitive survey techniques against each other and a direct question requires enormous sample sizes. For example, we include the following paragraph in the background section of the article:
+
+"Our aim in this paper is not to compare randomized response to a list experiment directly as there is already excellent work on that question (see \@rosenfeld2016 in particular). To our knowledge, the reason that list experiments have become the dominant method is because other methods like randomized response are very difficult to incorporate in a survey because they may require extensive interviewer training and physical randomization devices. For that reason, our aim in this paper is to show how a particular variant of the randomized response technique that we describe below fits the study of public opinion quite well using modern survey procedures."
+
+"There may of course be situations where a list experiment can perform better than a randomized response design, and other situations where only a list experiment is practical, such as with a verbal phone survey. However, we believe that expanding the toolkit available to scholars will only help to address this important issue of survey bias, and we show in this paper why a particular variant of randomized response is well-suited to the issue of political authoritarianism."
+
+3.  *The explanation of RRT on page 8 is a little hard to follow. Also, in selecting RRT as the better way to determine whether a respondents oppose a dictator, among other sensitive topics, it treats the latter as a dichotomous variable, which then fails to capture a lot of the variance (intensity) in opposition-support. So, RRT is not without important limitations.*
+
+We have worked to simplify this section and to add additional clarification on the nature of an RRT, which we agree is a non-intuitive concept. We also agree with the reviewer that the RRT is defined over binary variables, which leads to the noted limitation. We have added that limitation to our discussion of RRT.
+
+4.  *The findings about covariates offer a useful test of the reliability of the descriptive findings, although the author's claims may be over-optimistic given that results are not statistically significant. The finding that self-censorship was primarily among more moderate opponents of Saied (the Tunisian president) is particularly interesting, and I agree with the author that "this intriguing relationship necessarily invites speculation as to the underlying causal process.”*
+
+We agree with the reviewer that our findings should be caveated as some of them are fairly noisy. We have added the following sentence to our discussion of the results:
+
+"However, it is important to note that there is substantial noise in these findings with confidence intervals that cross zero, and for that reason should be interpreted with caution."
+
+## Reviewer 2
+
+1.  *I strongly recommend that the authors de-emphasize list experiments in the abstract and framing. While the paper clearly presents the RRT approach as an alternative to list experiments—and makes a compelling case for its advantages—the current framing raises expectations that these claims will be demonstrated empirically. Given that no list experiment was fielded, some of the language in the abstract and introduction should be softened to avoid this impression.*
+
+We agree with the reviewer, and as we have also noted with reviewer 1, we have de-emphasized the list experiment in this draft of the paper. We still discuss the list experiment in the background section as it is an important alternative method to the one that we present, but we removed any language that suggested that we were directly testing different sensitivity bias methods.
+
+2.  *Some language may be overly loaded with assumptions or unnecessary normative statements about the region or Tunisia. One example appears on p. 13, where Tunisia is described as having "a once-bright future as an emerging democracy" prior to the autogolpe. While discussion of this history is appropriate, the language should stick more closely to observable facts. It is not clear that we can confidently characterize Tunisia's future as "bright," particularly given the significant challenges it faced.*
+
+We have changed language in our discussion of Tunisia's democracy to be less normative and more factual. We have changed the sentence that the reviewer mentioned to the following:
+
+"Tunisia, which some observers thought was on a steady path to a consolidated democracy in the 2010s, succumbed to an autogolpe (self-coup) when President Saied shut down the country's elected parliament in 2021."
+
+3.  *What are some of the shortcomings of the RRT method as implemented here? While the authors are commendably transparent, I would welcome a more explicit discussion of potential downsides. Based on my own experience with sensitive survey tools—including list experiments—respondents are sometimes wary that some kind of "trick" is being used, which can affect both response behavior and willingness to answer. The authors note that there are substantially more missing responses to the sensitive question than to the direct question, and skepticism toward the method may contribute to this missingness in addition to cognitive load.*
