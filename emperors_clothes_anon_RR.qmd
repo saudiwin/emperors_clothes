@@ -236,6 +236,59 @@ Furthermore, it is impossible to use a physical randomization device in an onlin
 
 # Our Approach
 
+It is useful to briefly review the landscape of available techniques for measuring sensitive attitudes and behaviors in survey research. Below is a summary of the main techniques used in the literature, highlighting their respective advantages and limitations. While each approach offers certain benefits, they also involve tradeoffs between privacy protection, statistical efficiency, and implementation complexity which motivated our choice of the crosswise model design for this study.
+
+```{r}
+
+library(knitr)
+library(kableExtra)
+
+sensitivity_methods <- data.frame(
+  Method = c(
+    "Direct Questioning",
+    "List Experiment (Unmatched Count)",
+    "Randomized Response Technique (RRT)",
+    "Endorsement Experiment",
+    "Crosswise"
+  ),
+  
+  Description = c(
+    "Standard survey question asking directly about sensitive behavior or attitude",
+    "Respondents report total number of items from a list that apply to them; sensitive item included for treatment group only",
+    "Respondents use randomizing device (e.g., coin flip, dice) to determine whether to answer truthfully or give predetermined response",
+    "Respondents indicate support for policy when endorsed by different political figures or groups",
+    "Respondents answer whether sum of sensitive and non-sensitive items meets condition (crosswise) or report item sum directly"
+  ),
+  
+  Advantages = c(
+    "Simple, intuitive; no additional complexity for respondents or researchers",
+    "Strong privacy protection; respondents never reveal individual status; relatively straightforward analysis",
+    "Individual-level privacy protection; flexible implementation; can estimate prevalence",
+    "Less threatening framing; useful for policy attitudes; captures partisan cueing effects",
+    "Individual-level privacy through ambiguity; simpler than RRT; no randomizing device needed"
+  ),
+  
+  Disadvantages = c(
+    "High social desirability bias; potential for strategic misreporting; baseline for comparison only",
+    "No individual-level estimates; requires larger sample sizes; assumes no design effects or liars",
+    "Requires understanding of randomization; potential for non-compliance; perceived complexity may affect responses",
+    "Limited to policy/attitude questions; may not fully eliminate sensitivity; requires credible endorsers",
+    "Cognitive burden and potential confusion; limited validation studies compared to list experiments"
+  )
+)
+
+kable(sensitivity_methods, 
+      caption = "Comparison of Survey Techniques for Sensitive Questions",
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = c("scale_down", "hold_position"),
+                full_width = FALSE) %>%
+  column_spec(1, width = "3cm", bold = TRUE) %>%
+  column_spec(2, width = "4cm") %>%
+  column_spec(3, width = "4cm") %>%
+  column_spec(4, width = "4cm")
+
+```
+
 To overcome the implementation issues of RRT, in this paper we employ a more recent variant of the RRT known as the crosswise model [@tan2009; @gingerich2016] in which the respondent's mother's month of birth is used as the encryption key. The respondent is given two statements, the first of which says that their mother was born in the first three months of the year, and the second is the sensitive trait, such as support for a dictator. The respondent is then asked whether one or both of these statements are true or neither statement is true. Because the survey researcher does not know in which month the respondent's mother was born, the researcher will not be able to tell if the respondent's mother was born at a certain time of year *or* because their opinion regarding the sensitive statement.
 
 The crosswise variant of the RRT is easy to implement in either online or offline versions as it does not require the use of dice or other randomness-generating mechanisms. Importantly, RRT does not require the researcher to find sensitive and non-sensitive items which do not interact and do not have either floor or ceiling effects. Additionally, it is easy for the crosswise RRT to meet the common knowledge assumption because most people are aware that births are approximately uniformly distributed across months--though perhaps not in those precise terms--and we would expect this knowledge about the distribution of births to be commonly held regardless of age or educational attainment. The main limitation is that the method is defined primarily for binary outcome variables, though we note that this is a limitation of most sensitive survey methods we are aware of.
