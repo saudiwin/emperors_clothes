@@ -94,3 +94,39 @@ We have changed language in our discussion of Tunisia's democracy to be less nor
 "Tunisia, which some observers thought was on a steady path to a consolidated democracy in the 2010s, succumbed to an autogolpe (self-coup) when President Saied shut down the country's elected parliament in 2021."
 
 3.  *What are some of the shortcomings of the RRT method as implemented here? While the authors are commendably transparent, I would welcome a more explicit discussion of potential downsides. Based on my own experience with sensitive survey tools—including list experiments—respondents are sometimes wary that some kind of "trick" is being used, which can affect both response behavior and willingness to answer. The authors note that there are substantially more missing responses to the sensitive question than to the direct question, and skepticism toward the method may contribute to this missingness in addition to cognitive load.*
+
+We agree with the reviewer that there are downsides to using sensitive question formats. We have added a discussion of limitations of the method in our discussion section, and we reproduce the relevant paragraph below:
+
+"While the RRT design makes use of assumptions that are easier to defend in this context than the list experiment, it does still make assumptions. The foremost assumption is that the randomizing device effectively encrypts the respondent's answer. If the respondent does not believe this--regardless of the sources of this belief--than the RRT will fail to capture the true latent trait. As we have previously mentioned, one advantage of the RRT with authoritarian opinion polling is that the direction of this bias is known--it will deflate the estimate of opposition to the authoritarian leader. For these reasons, while it is important to remember this assumption, it is nonetheless quite helpful for inference that the bias tends to be conservative."
+
+"Additionally, RRTs, along with all sensitive question designs, require more cognitive effort from the respondent to understand, and consequently higher rates of missingness. It is not possible to measure this bias without also employing a direct question as we do in this paper, though we note that this procedure can come at considerable cost in terms of power. However, we note that while the rate of missingness is higher for the RRT question we employ, it is still low in objective terms at 6%. If the missingness rate were considerably higher, then it might be worthwhile to consider employing a direct question even there is residual sensitivity bias."
+
+4. *R2: (N.B. While the number of missing responses may be relatively low, could this be context dependent? Do we have reason to believe that a list experiment, for example, would have produced lower non-response rates in this setting?)*
+
+We do not have any way in our study of probing missing data more rigorously. At a minimum, we would have to vary the context (such as employing the survey in other countries) to know what the plausible range of missingness rates are. For these reasons, given our limited knowledge, we are unable to provide a more informative response to the reviewer's question than what we wrote in our previous response.
+
+5. *R2: -A small table summarizing the main tools available for estimating sensitivity bias or eliciting preferences on sensitive questions could be useful, either near the end of the Background section or at the beginning of the Our Approach section. Such a table could briefly outline each method along with its advantages and drawbacks.*
+
+We thank the reviewer for this suggestion and we have indeed added such a table in our background section.
+
+6. *What does the Tunisian case represent with respect to repression of political speech? Even after the autogolpe, Tunisia is not among the most repressive states in this domain. This matters both for interpreting the magnitude of sensitivity bias and for contextualizing the Tunisia-specific findings. In more repressive contexts, one might expect those who are most opposed to be more likely to falsify their preferences. The Case Selection section should situate Tunisia relative to other states in the region, and the Discussion section could further contextualize the findings.*
+
+We agree with the reviewer that other states in the region, such as the United Arab Emirates, have more effective repressive tools at their disposal to silence political dissent. 
+
+We have added the following information to our case study:
+
+And the following to our discussion section:
+
+7. *Relatedly, the Discussion section could do more to highlight the paper's most interesting results. If sensitivity bias is highest among those who are moderately opposed, how might this bias our understanding of the characteristics of regime opponents? There is considerable room for elaboration here.*
+
+We have expanded our discussion of this finding considerably with relation to recent work by Shammaileh (2025). In particular, we note an intriguing connection between Shammaileh's formal model of sensitivity survey bias and our empirical relationship concerning the strength of opposition to Saied. Shammaileh's model predicts that, indeed, sensitivity bias should increase highest for those who are closer to the dictator's ideal point, and less quickly the farther the respondent is from the dictator.
+
+The full analysis is as follows:
+
+8. *"Self-censorship" can be defined in multiple ways. A brief clarification of how the authors define this concept would be helpful.*
+
+We have added a definition of self-censorship to our background section as follows:
+
+9. *Finally, given the venue, the authors might consider briefly highlighting that scholars of the region have made important methodological contributions in this area, whether through work on list experiments, sensitivity bias in surveys, or qualitative research on how context shapes data quality. A short paragraph in the introduction or background section could acknowledge this literature, though this is not really necessary.*
+
+We note that we have cited scholars working in or on the region, and in this draft we have made sure to highlight their specific contributions in our background section.
