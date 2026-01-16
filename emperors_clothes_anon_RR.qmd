@@ -269,7 +269,7 @@ sensitivity_methods <- data.frame(
   ),
   
   Disadvantages = c(
-    "High social desirability bias; potential for strategic misreporting; baseline for comparison only",
+    "High social desirability bias; potential for strategic misreporting; baseline for comparison only, Potential for self-censorship due to fear of repression or consequences ",
     "No individual-level estimates; requires larger sample sizes; assumes no design effects or liars",
     "Requires understanding of randomization; potential for non-compliance; perceived complexity may affect responses",
     "Limited to policy/attitude questions; may not fully eliminate sensitivity; requires credible endorsers",
